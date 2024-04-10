@@ -16,88 +16,104 @@ TOKEN = os.environ.get("TOKEN")
 APP_URL = os.environ.get("APP_URL")
 PORT = int(os.environ.get('PORT', '8443'))
 
-def create_table(data, type) -> str:
+
+def create_table(data, type) -> PrettyTable:
     try:
+
+       # Check if data is a string
         if isinstance(data, str):
+            # If string, convert to Python object
             json_data = json.loads(data)
         elif isinstance(data, list):
+           # If it's a list, use it directly
             json_data = data
         else:
+            # If not a string or list, handle error or return
             raise ValueError("Invalid data format")
         
         if type == "topvalidators":
-            headers = ["Alias", "Voting Power", "Uptime", "Percentage", "Address"]
-            rows = []
-            for entry in json_data:
+            table = PrettyTable()
+            headers = ["Address", "Alias", "Voting Power", "Percentage" , "Uptime"]
+            table.align["Address"] = "l"
+            table.align["Voting Power"] = "l"
+            table.align["Alias"] = "l"
+            table.align["Percentage"] = "l"
+            table.align["Uptime(%)"] = "l"
+            table.title = "Top Validators"
+            table.field_names = headers
+            for entry in data:
                 voting_power = round(entry['votingPower'] / 1000000, 2)
                 truncated_address = entry['address'][:4] + "..." + entry['address'][-4:]
-                row = [entry['alias'], voting_power, entry['uptime'], entry['percentage'], truncated_address]
-                rows.append(row)
-            table = tabulate(rows, headers=headers, tablefmt="pipe")
+                table.add_row([truncated_address, entry['alias'], voting_power, entry['percentage'], entry['uptime'] ])
             return table
         elif type == "proposals":
-            headers = ["ID", "Kind", "Result", "Start Epoch", "End Epoch", "Grace Epoch", "Author"]
-            rows = []
-            for entry in json_data:
+            table = PrettyTable()
+            headers = ["ID", "Kind", "Author", "Start Epoch", "End Epoch", "Grace Epoch", "Result"]
+            table.title = "Proposals"
+            table.field_names = headers
+            for entry in data:
                 author_account = entry.get("author", {}).get("Account", "")
                 truncated_author_account = author_account[:4] + "..." + author_account[-4:]
                 row = [
                     entry.get("id", ""),
                     entry.get("kind", ""),
-                    entry.get("result", ""),
+                    truncated_author_account,
                     entry.get("start_epoch", ""),
                     entry.get("end_epoch", ""),
                     entry.get("grace_epoch", ""),
-                    truncated_author_account
+                    entry.get("result", "")
                 ]
-                rows.append(row)
-            table = tabulate(rows, headers=headers, tablefmt="pipe")
+                table.add_row(row)
             return table
-        elif type == "proposal_pending":
-            headers = ["ID", "Kind", "Result", "Start Epoch", "End Epoch", "Grace Epoch", "Author"]
-            rows = []
-            for entry in json_data:
+        elif type == "proposalpending":
+            table = PrettyTable()
+            headers = ["ID", "Kind", "Author", "Start Epoch", "End Epoch", "Grace Epoch", "Result"]
+            table.title = "Pending Proposals"
+            table.field_names = headers
+            for entry in data:
                 if entry.get("result", "") == "Pending":
                     author_account = entry.get("author", {}).get("Account", "")
-                    truncated_author_account = author_account[:4] + "..." + author_account[-4:]
+                    truncated_author_account = author_account[:4] + "..." + author_account[-4:]       
                     row = [
-                        entry.get("id", ""),
-                        entry.get("kind", ""),
-                        entry.get("result", ""),
-                        entry.get("start_epoch", ""),
-                        entry.get("end_epoch", ""),
-                        entry.get("grace_epoch", ""),
-                        truncated_author_account
+                    entry.get("id", ""),
+                    entry.get("kind", ""),
+                    truncated_author_account,
+                    entry.get("start_epoch", ""),
+                    entry.get("end_epoch", ""),
+                    entry.get("grace_epoch", ""),
+                    entry.get("result", "")
                     ]
-                    rows.append(row)
-            table = tabulate(rows, headers=headers, tablefmt="pipe")
+                    table.add_row(row)
             return table
         elif type == "votingproposals":
-            headers = ["ID", "Kind", "Result", "Start Epoch", "End Epoch", "Grace Epoch", "Author"]
-            rows = []
-            for entry in json_data:
+            table = PrettyTable()
+            headers = ["ID", "Kind", "Author", "Start Epoch", "End Epoch", "Grace Epoch", "Result", "Yay", "Nay", "Abstain" ]
+            table.title = "Voting Period - Proposals"
+            table.field_names = headers
+            for entry in data:
                 if entry.get("result", "") == "VotingPeriod":
                     author_account = entry.get("author", {}).get("Account", "")
-                    truncated_author_account = author_account[:4] + "..." + author_account[-4:]
+                    truncated_author_account = author_account[:4] + "..." + author_account[-4:]      
                     row = [
-                        entry.get("id", ""),
-                        entry.get("kind", ""),
-                        entry.get("result", ""),
-                        entry.get("start_epoch", ""),
-                        entry.get("end_epoch", ""),
-                        entry.get("grace_epoch", ""),
-                        truncated_author_account
+                    entry.get("id", ""),
+                    entry.get("kind", ""),
+                    truncated_author_account,
+                    entry.get("start_epoch", ""),
+                    entry.get("end_epoch", ""),
+                    entry.get("grace_epoch", ""),
+                    entry.get("result", ""),
+                    round(float(entry.get("yay_votes", 0)) / 1000000, 2),
+                    round(float(entry.get("nay_votes", 0)) / 1000000, 2),
+                    round(float(entry.get("abstain_votes", 0)) / 1000000, 2)
                     ]
-                    rows.append(row)
-            table = tabulate(rows, headers=headers, tablefmt="pipe")
+                    table.add_row(row)
             return table
         else:
             raise ValueError("Invalid type")
+         
     except Exception as e:
         print(f"Error creating table: {e}")
         return None
-
-
     
 def info(update: Update, context: CallbackContext) -> None:
     try:
@@ -395,6 +411,7 @@ def help_command(update: Update, context: CallbackContext) -> None:
     help_text = "THIS IS NAMADA.THE BEST BLOCKCHAIN THERE IS\n"
     help_text += "WE WILL DEFINITELY PROCESS ALL QUERIES,tpknam1qrxc7z4txljwl8dzwq5cucf7egp4td30s09lh2xdkl9qdqv8ktn4q63l84q\n"
     update.effective_message.reply_text(help_text)
+
 
 def main() -> None:
     updater = Updater(TOKEN, use_context=True)
